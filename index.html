@@ -6,12 +6,28 @@
     <title>Crypto Portfolio Tracker</title>
     <link rel="stylesheet" href="styles.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
 </head>
 <body>
     <header>
+    <div id="auth-section">
         <h1>Crypto Portfolio Tracker</h1>
-        <p>Track your holdings & PnL (CoinGecko API)</p>
-    </header>
+        <div id="user-info" style="display:none; margin-top:10px;">
+            <span>Welcome, <span id="user-email"></span>!</span>
+            <button id="logout-btn">Logout</button>
+        </div>
+        <div id="login-form" style="margin-top:15px;">
+            <input type="email" id="login-email" placeholder="Email" required style="padding:8px; margin-right:5px;">
+            <input type="password" id="login-password" placeholder="Password" required style="padding:8px; margin-right:5px;">
+            <button id="login-btn">Login</button>
+            <button id="signup-btn">Sign Up</button>
+        </div>
+    </div>
+</header>
+    
     
     <section id="add-transaction">
         <h2>Add Transaction</h2>

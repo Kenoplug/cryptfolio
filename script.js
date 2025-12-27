@@ -1,3 +1,92 @@
+// === FIREBASE SETUP ===
+const firebaseConfig = {
+  apiKey: "AIzaSyBVnncOiZprt32-UvugIUE3n97a6MWo3M8",
+  authDomain: "kenfolio-75b52.firebaseapp.com",
+  projectId: "kenfolio-75b52",
+  storageBucket: "kenfolio-75b52.firebasestorage.app",
+  messagingSenderId: "94272736894",
+  appId: "1:94272736894:web:f079d80174b9837822522f",
+  measurementId: "G-MNK2QGB36L"
+};
+
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
+
+// Elements
+const loginForm = document.getElementById('login-form');
+const userInfo = document.getElementById('user-info');
+const userEmailSpan = document.getElementById('user-email');
+const logoutBtn = document.getElementById('logout-btn');
+const loginBtn = document.getElementById('login-btn');
+const signupBtn = document.getElementById('signup-btn');
+const emailInput = document.getElementById('login-email');
+const passwordInput = document.getElementById('login-password');
+
+// Auth state listener
+auth.onAuthStateChanged(user => {
+    if (user) {
+        userInfo.style.display = 'block';
+        loginForm.style.display = 'none';
+        userEmailSpan.textContent = user.email;
+        loadUserData(user.uid);
+    } else {
+        userInfo.style.display = 'none';
+        loginForm.style.display = 'block';
+        transactions = [];
+        refreshAll();
+    }
+});
+
+// Login
+loginBtn.addEventListener('click', () => {
+    const email = emailInput.value.trim();
+    const password = passwordInput.value;
+    auth.signInWithEmailAndPassword(email, password)
+        .catch(err => alert('Login failed: ' + err.message));
+});
+
+// Sign Up
+signupBtn.addEventListener('click', () => {
+    const email = emailInput.value.trim();
+    const password = passwordInput.value;
+    if (password.length < 6) return alert('Password must be at least 6 characters');
+    auth.createUserWithEmailAndPassword(email, password)
+        .catch(err => alert('Sign up failed: ' + err.message));
+});
+
+// Logout
+logoutBtn.addEventListener('click', () => {
+    auth.signOut();
+});
+
+// Save/Load transactions per user
+function saveTransactions() {
+    const user = auth.currentUser;
+    if (user) {
+        db.collection('users').doc(user.uid).set({
+            transactions: transactions
+        }).catch(err => console.error('Save error:', err));
+    }
+}
+
+function loadUserData(uid) {
+    db.collection('users').doc(uid).get()
+        .then(doc => {
+            if (doc.exists && doc.data().transactions) {
+                transactions = doc.data().transactions;
+            } else {
+                transactions = [];
+            }
+            refreshAll();
+        }).catch(err => {
+            console.error('Load error:', err);
+            transactions = [];
+            refreshAll();
+        });
+}
+
+
 document.addEventListener('DOMContentLoaded', () => {
     const form = document.getElementById('transaction-form');
     const portfolioCards = document.getElementById('portfolio-cards');
