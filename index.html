@@ -5,19 +5,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Crypto Portfolio Tracker</title>
     <link rel="stylesheet" href="styles.css">
-    <!-- Chart.js CDN -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
     <header>
         <h1>Crypto Portfolio Tracker</h1>
-        <p>Track your crypto holdings and calculate PnL based on current market prices (Powered by CoinGecko API)</p>
+        <p>Track your holdings & PnL (CoinGecko API)</p>
     </header>
     
     <section id="add-transaction">
         <h2>Add Transaction</h2>
         <form id="transaction-form">
-            <label for="coin">Coin (CoinGecko ID, e.g., bitcoin, ethereum):</label>
+            <label for="coin">Coin ID (e.g., bitcoin):</label>
             <input type="text" id="coin" required placeholder="bitcoin">
             
             <label for="action">Action:</label>
@@ -29,74 +28,44 @@
             <label for="quantity">Quantity:</label>
             <input type="number" id="quantity" min="0" step="0.00000001" required>
             
-            <label for="price">Price per Coin (USD):</label>
+            <label for="price">Price (USD):</label>
             <input type="number" id="price" min="0" step="0.01" required>
             
-            <label for="date">Date (optional, defaults to now):</label>
+            <label for="date">Date (optional):</label>
             <input type="date" id="date">
             
-            <button type="submit">Add Transaction</button>
+            <button type="submit">Add</button>
         </form>
     </section>
     
     <section id="portfolio">
         <h2>Your Portfolio</h2>
-        <table id="portfolio-table">
-            <thead>
-                <tr>
-                    <th>Coin</th>
-                    <th>Holding Quantity</th>
-                    <th>Average Buy Price</th>
-                    <th>Current Price</th>
-                    <th>Current Value</th>
-                    <th>Unrealized PnL</th>
-                    <th>Realized PnL</th>
-                    <th>Chart</th>
-                </tr>
-            </thead>
-            <tbody></tbody>
-        </table>
+        <div id="portfolio-cards"></div>
         
         <div id="totals">
-            <p>Total Portfolio Value: <span id="total-value">0</span> USD</p>
-            <p>Total Unrealized PnL: <span id="total-unrealized-pnl">0</span> USD</p>
-            <p>Total Realized PnL: <span id="total-realized-pnl">0</span> USD</p>
+            <p>Total Value: <span id="total-value">0</span> USD</p>
+            <p>Unrealized PnL: <span id="total-unrealized-pnl">0</span> USD</p>
+            <p>Realized PnL: <span id="total-realized-pnl">0</span> USD</p>
         </div>
     </section>
 
-    <!-- NEW: Analytics Charts Section -->
     <section id="analytics">
-        <h2>Analytics Charts</h2>
-        <div id="portfolio-value-chart-container">
-            <h3>Portfolio Value Over Time (Last 30 Days)</h3>
+        <h2>Analytics</h2>
+        <div class="chart-container">
+            <h3>Portfolio Value (30 Days)</h3>
             <canvas id="portfolioValueChart"></canvas>
         </div>
         
-        <div id="price-charts-container">
-            <h3>Individual Coin Price Charts (Click on a coin's "View Chart" in the portfolio table)</h3>
-            <div id="selected-coin-chart">
-                <canvas id="coinPriceChart"></canvas>
-            </div>
+        <div class="chart-container" id="selected-coin-chart" style="display:none;">
+            <h3 id="coin-chart-title"></h3>
+            <canvas id="coinPriceChart"></canvas>
         </div>
     </section>
 
     <section id="transaction-history">
         <h2>Transaction History</h2>
-        <button id="clear-all" style="margin-bottom: 15px; background: #d32f2f;">Clear All Transactions</button>
-        <table id="history-table">
-            <thead>
-                <tr>
-                    <th>Date</th>
-                    <th>Coin</th>
-                    <th>Action</th>
-                    <th>Quantity</th>
-                    <th>Price (USD)</th>
-                    <th>Total Amount (USD)</th>
-                    <th>Action</th>
-                </tr>
-            </thead>
-            <tbody></tbody>
-        </table>
+        <button id="clear-all">Clear All</button>
+        <div id="history-cards"></div>
     </section>
     
     <script src="script.js"></script>

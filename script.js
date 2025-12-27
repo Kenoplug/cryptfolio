@@ -1,7 +1,7 @@
 document.addEventListener('DOMContentLoaded', () => {
     const form = document.getElementById('transaction-form');
-    const tableBody = document.querySelector('#portfolio-table tbody');
-    const historyTableBody = document.querySelector('#history-table tbody');
+    const portfolioCards = document.getElementById('portfolio-cards');
+    const historyCards = document.getElementById('history-cards');
     const totalValueSpan = document.getElementById('total-value');
     const totalUnrealizedPnlSpan = document.getElementById('total-unrealized-pnl');
     const totalRealizedPnlSpan = document.getElementById('total-realized-pnl');
@@ -41,9 +41,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     sellPnl += qtyToSell * (tx.price - buy.price);
                     buy.quantity -= qtyToSell;
                     sellQty -= qtyToSell;
-                    if (buy.quantity <= 0) {
-                        fifoQueues[coin].shift();
-                    }
+                    if (buy.quantity <= 0) fifoQueues[coin].shift();
                 }
                 portfolio[coin].realizedPnl += sellPnl;
                 portfolio[coin].quantity -= tx.quantity;
@@ -54,9 +52,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (portfolio[coin].quantity > 0) {
                 let remainingCost = 0;
                 if (fifoQueues[coin]) {
-                    fifoQueues[coin].forEach(item => {
-                        remainingCost += item.quantity * item.price;
-                    });
+                    fifoQueues[coin].forEach(item => remainingCost += item.quantity * item.price);
                 }
                 portfolio[coin].totalCost = remainingCost;
                 portfolio[coin].avgPrice = remainingCost / portfolio[coin].quantity || 0;
@@ -71,26 +67,22 @@ document.addEventListener('DOMContentLoaded', () => {
         const ids = coins.join(',');
         const url = `https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=usd`;
         try {
-            const response = await fetch(url);
-            const data = await response.json();
+            const res = await fetch(url);
+            const data = await res.json();
             Object.keys(data).forEach(coin => {
-                if (portfolio[coin]) {
-                    portfolio[coin].currentPrice = data[coin].usd || 0;
-                }
+                if (portfolio[coin]) portfolio[coin].currentPrice = data[coin].usd || 0;
             });
-        } catch (error) {
-            console.error('Error fetching prices:', error);
-        }
+        } catch (e) { console.error(e); }
     }
 
     async function fetchHistoricalPrices(coin, days = 30) {
         const url = `https://api.coingecko.com/api/v3/coins/${coin}/market_chart?vs_currency=usd&days=${days}`;
         try {
-            const response = await fetch(url);
-            const data = await response.json();
+            const res = await fetch(url);
+            const data = await res.json();
             return data.prices.map(p => ({ time: new Date(p[0]).toLocaleDateString(), value: p[1] }));
-        } catch (error) {
-            console.error('Error fetching historical prices:', error);
+        } catch (e) {
+            console.error(e);
             return [];
         }
     }
@@ -101,60 +93,60 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const historicalData = {};
         await Promise.all(coins.map(async coin => {
-            const prices = await fetchHistoricalPrices(coin, days);
-            historicalData[coin] = prices;
+            historicalData[coin] = await fetchHistoricalPrices(coin, days);
         }));
 
         const dates = [...new Set(Object.values(historicalData).flatMap(d => d.map(p => p.time)))].sort();
-        const portfolioValues = dates.map(date => {
+        return dates.map(date => {
             let value = 0;
             coins.forEach(coin => {
-                const pricePoint = historicalData[coin].find(p => p.time === date);
-                if (pricePoint) value += pricePoint.value * portfolio[coin].quantity;
+                const point = historicalData[coin].find(p => p.time === date);
+                if (point) value += point.value * portfolio[coin].quantity;
             });
             return { time: date, value: parseFloat(value.toFixed(2)) };
         });
-
-        return portfolioValues;
     }
 
-    function renderPortfolio() {
+    function renderPortfolioCards() {
+        portfolioCards.innerHTML = '';
         let totalValue = 0;
-        let totalUnrealizedPnl = 0;
-        let totalRealizedPnl = 0;
-
-        tableBody.innerHTML = '';
+        let totalUnrealized = 0;
+        let totalRealized = 0;
 
         Object.keys(portfolio).forEach(coin => {
-            const entry = portfolio[coin];
-            if (entry.quantity === 0 && entry.realizedPnl === 0) return;
+            const e = portfolio[coin];
+            if (e.quantity === 0 && e.realizedPnl === 0) return;
 
-            const currentValue = entry.quantity * entry.currentPrice;
-            const unrealizedPnl = entry.quantity > 0 ? (entry.currentPrice - entry.avgPrice) * entry.quantity : 0;
+            const currentValue = e.quantity * e.currentPrice;
+            const unrealized = e.quantity > 0 ? (e.currentPrice - e.avgPrice) * e.quantity : 0;
 
             totalValue += currentValue;
-            totalUnrealizedPnl += unrealizedPnl;
-            totalRealizedPnl += entry.realizedPnl;
+            totalUnrealized += unrealized;
+            totalRealized += e.realizedPnl;
 
-            const row = document.createElement('tr');
-            row.innerHTML = `
-                <td>${coin.charAt(0).toUpperCase() + coin.slice(1)}</td>
-                <td>${entry.quantity.toFixed(6)}</td>
-                <td>${entry.avgPrice.toFixed(2)} USD</td>
-                <td>${entry.currentPrice.toFixed(2)} USD</td>
-                <td>${currentValue.toFixed(2)} USD</td>
-                <td class="${unrealizedPnl >= 0 ? 'profit' : 'loss'}">${unrealizedPnl.toFixed(2)} USD</td>
-                <td class="${entry.realizedPnl >= 0 ? 'profit' : 'loss'}">${entry.realizedPnl.toFixed(2)} USD</td>
-                <td><button class="chart-btn" data-coin="${coin}">View Chart</button></td>
+            const card = document.createElement('div');
+            card.className = 'card';
+            card.innerHTML = `
+                <div class="card-header">
+                    <span>${coin.charAt(0).toUpperCase() + coin.slice(1)}</span>
+                    <button class="chart-btn" data-coin="${coin}">Chart</button>
+                </div>
+                <div class="card-grid">
+                    <div class="card-item"><span class="card-label">Holding</span><span class="card-value">${e.quantity.toFixed(6)}</span></div>
+                    <div class="card-item"><span class="card-label">Avg Buy</span><span class="card-value">$${e.avgPrice.toFixed(2)}</span></div>
+                    <div class="card-item"><span class="card-label">Current Price</span><span class="card-value">$${e.currentPrice.toFixed(2)}</span></div>
+                    <div class="card-item"><span class="card-label">Value</span><span class="card-value">$${currentValue.toFixed(2)}</span></div>
+                    <div class="card-item"><span class="card-label">Unrealized PnL</span><span class="card-value ${unrealized >= 0 ? 'profit' : 'loss'}">$${unrealized.toFixed(2)}</span></div>
+                    <div class="card-item"><span class="card-label">Realized PnL</span><span class="card-value ${e.realizedPnl >= 0 ? 'profit' : 'loss'}">$${e.realizedPnl.toFixed(2)}</span></div>
+                </div>
             `;
-            tableBody.appendChild(row);
+            portfolioCards.appendChild(card);
         });
 
         totalValueSpan.textContent = totalValue.toFixed(2);
-        totalUnrealizedPnlSpan.textContent = totalUnrealizedPnl.toFixed(2);
-        totalRealizedPnlSpan.textContent = totalRealizedPnl.toFixed(2);
+        totalUnrealizedPnlSpan.textContent = totalUnrealized.toFixed(2);
+        totalRealizedPnlSpan.textContent = totalRealized.toFixed(2);
 
-        // Attach chart buttons
         document.querySelectorAll('.chart-btn').forEach(btn => {
             btn.addEventListener('click', async () => {
                 selectedCoin = btn.dataset.coin;
@@ -164,87 +156,35 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    function renderPortfolioValueChart(data) {
-        const ctx = document.getElementById('portfolioValueChart').getContext('2d');
-        if (portfolioValueChart) portfolioValueChart.destroy();
+    function renderHistoryCards() {
+        historyCards.innerHTML = '';
+        const sorted = [...transactions].sort((a, b) => new Date(b.date) - new Date(a.date));
 
-        portfolioValueChart = new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: data.map(d => d.time),
-                datasets: [{
-                    label: 'Portfolio Value (USD)',
-                    data: data.map(d => d.value),
-                    borderColor: '#4CAF50',
-                    backgroundColor: 'rgba(76, 175, 80, 0.2)',
-                    fill: true,
-                    tension: 0.3
-                }]
-            },
-            options: {
-                responsive: true,
-                scales: {
-                    y: { beginAtZero: false }
-                }
-            }
-        });
-    }
-
-    function renderCoinPriceChart(data, coinName) {
-        const ctx = document.getElementById('coinPriceChart').getContext('2d');
-        if (coinPriceChart) coinPriceChart.destroy();
-
-        document.getElementById('selected-coin-chart').style.display = 'block';
-
-        coinPriceChart = new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: data.map(d => d.time),
-                datasets: [{
-                    label: `${coinName.charAt(0).toUpperCase() + coinName.slice(1)} Price (USD)`,
-                    data: data.map(d => d.value),
-                    borderColor: '#2196F3',
-                    backgroundColor: 'rgba(33, 150, 243, 0.2)',
-                    fill: true,
-                    tension: 0.3
-                }]
-            },
-            options: {
-                responsive: true,
-                scales: {
-                    y: { beginAtZero: false }
-                }
-            }
-        });
-    }
-
-    function renderHistory() {
-        historyTableBody.innerHTML = '';
-
-        const sortedTx = [...transactions].sort((a, b) => new Date(b.date) - new Date(a.date));
-
-        sortedTx.forEach((tx, index) => {
-            const totalAmount = (tx.quantity * tx.price).toFixed(2);
+        sorted.forEach((tx, i) => {
+            const total = (tx.quantity * tx.price).toFixed(2);
             const actionClass = tx.action === 'buy' ? 'buy' : 'sell';
             const actionText = tx.action.charAt(0).toUpperCase() + tx.action.slice(1);
 
-            const row = document.createElement('tr');
-            row.innerHTML = `
-                <td>${tx.date}</td>
-                <td>${tx.coin.charAt(0).toUpperCase() + tx.coin.slice(1)}</td>
-                <td class="${actionClass}">${actionText}</td>
-                <td>${tx.quantity.toFixed(6)}</td>
-                <td>${tx.price.toFixed(2)}</td>
-                <td>${totalAmount}</td>
-                <td><button class="delete-btn" data-index="${transactions.findIndex(t => t === tx)}">Delete</button></td>
+            const card = document.createElement('div');
+            card.className = 'card';
+            card.innerHTML = `
+                <div class="card-grid">
+                    <div class="card-item"><span class="card-label">Date</span><span class="card-value">${tx.date}</span></div>
+                    <div class="card-item"><span class="card-label">Coin</span><span class="card-value">${tx.coin.charAt(0).toUpperCase() + tx.coin.slice(1)}</span></div>
+                    <div class="card-item"><span class="card-label">Action</span><span class="card-value ${actionClass}">${actionText}</span></div>
+                    <div class="card-item"><span class="card-label">Quantity</span><span class="card-value">${tx.quantity.toFixed(6)}</span></div>
+                    <div class="card-item"><span class="card-label">Price</span><span class="card-value">$${tx.price.toFixed(2)}</span></div>
+                    <div class="card-item"><span class="card-label">Total</span><span class="card-value">$${total}</span></div>
+                    <div class="card-item" style="grid-column: span 2;"><button class="delete-btn" data-index="${transactions.findIndex(t => t === tx)}">Delete</button></div>
+                </div>
             `;
-            historyTableBody.appendChild(row);
+            historyCards.appendChild(card);
         });
 
         document.querySelectorAll('.delete-btn').forEach(btn => {
-            btn.addEventListener('click', (e) => {
+            btn.addEventListener('click', e => {
                 const idx = parseInt(e.target.dataset.index);
-                if (confirm('Are you sure you want to delete this transaction?')) {
+                if (confirm('Delete this transaction?')) {
                     transactions.splice(idx, 1);
                     saveTransactions();
                     refreshAll();
@@ -253,17 +193,35 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    function renderPortfolioValueChart(data) {
+        const ctx = document.getElementById('portfolioValueChart').getContext('2d');
+        if (portfolioValueChart) portfolioValueChart.destroy();
+        portfolioValueChart = new Chart(ctx, {
+            type: 'line',
+            data: { labels: data.map(d => d.time), datasets: [{ label: 'Portfolio Value (USD)', data: data.map(d => d.value), borderColor: '#4CAF50', backgroundColor: 'rgba(76,175,80,0.2)', fill: true, tension: 0.3 }] },
+            options: { responsive: true, maintainAspectRatio: false }
+        });
+    }
+
+    function renderCoinPriceChart(data, coinName) {
+        const ctx = document.getElementById('coinPriceChart').getContext('2d');
+        if (coinPriceChart) coinPriceChart.destroy();
+        document.getElementById('selected-coin-chart').style.display = 'block';
+        document.getElementById('coin-chart-title').textContent = `${coinName.charAt(0).toUpperCase() + coinName.slice(1)} Price (30 Days)`;
+        coinPriceChart = new Chart(ctx, {
+            type: 'line',
+            data: { labels: data.map(d => d.time), datasets: [{ label: `${coinName.charAt(0).toUpperCase() + coinName.slice(1)} Price (USD)`, data: data.map(d => d.value), borderColor: '#2196F3', backgroundColor: 'rgba(33,150,243,0.2)', fill: true, tension: 0.3 }] },
+            options: { responsive: true, maintainAspectRatio: false }
+        });
+    }
+
     async function refreshAll() {
         updatePortfolio();
-        const coins = Object.keys(portfolio);
-        await fetchPrices(coins);
-        renderPortfolio();
-        renderHistory();
-
-        // Update charts
-        const portfolioHist = await fetchPortfolioHistoricalValue(30);
-        renderPortfolioValueChart(portfolioHist);
-
+        await fetchPrices(Object.keys(portfolio));
+        renderPortfolioCards();
+        renderHistoryCards();
+        const hist = await fetchPortfolioHistoricalValue(30);
+        renderPortfolioValueChart(hist);
         if (selectedCoin) {
             const coinData = await fetchHistoricalPrices(selectedCoin, 30);
             renderCoinPriceChart(coinData, selectedCoin);
@@ -276,8 +234,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const action = document.getElementById('action').value;
         const quantity = parseFloat(document.getElementById('quantity').value);
         const price = parseFloat(document.getElementById('price').value);
-        const dateInput = document.getElementById('date').value;
-        const date = dateInput || new Date().toISOString().split('T')[0];
+        const date = document.getElementById('date').value || new Date().toISOString().split('T')[0];
 
         transactions.push({ coin, action, quantity, price, date });
         saveTransactions();
@@ -286,13 +243,12 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     clearAllBtn.addEventListener('click', () => {
-        if (confirm('Are you sure you want to delete ALL transactions? This cannot be undone.')) {
+        if (confirm('Delete ALL transactions?')) {
             transactions = [];
             localStorage.removeItem('cryptoTransactions');
             refreshAll();
         }
     });
 
-    // Initial load
     refreshAll();
 });
