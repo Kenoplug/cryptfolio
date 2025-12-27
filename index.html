@@ -5,84 +5,93 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Crypto Portfolio Tracker</title>
     <link rel="stylesheet" href="styles.css">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <!-- Firebase SDKs -->
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
+    <!-- Authentication Section (always visible) -->
     <header>
-    <div id="auth-section">
-        <h1>Crypto Portfolio Tracker</h1>
-        <div id="user-info" style="display:none; margin-top:10px;">
-            <span>Welcome, <span id="user-email"></span>!</span>
-            <button id="logout-btn">Logout</button>
+        <div id="auth-section">
+            <h1>Crypto Portfolio Tracker</h1>
+            <p>Track your holdings & PnL (CoinGecko API)</p>
+
+            <div id="user-info" style="display:none; margin-top:15px;">
+                <span>Welcome, <strong id="user-email"></strong>!</span>
+                <button id="logout-btn">Logout</button>
+            </div>
+
+            <div id="login-form">
+                <h3 style="margin-bottom:10px;">Login / Register</h3>
+                <input type="email" id="login-email" placeholder="Email" required>
+                <input type="password" id="login-password" placeholder="Password (min 6 chars)" required>
+                <div style="margin-top:10px;">
+                    <button id="login-btn">Login</button>
+                    <button id="signup-btn">Sign Up</button>
+                </div>
+                <p id="auth-message" style="color:red; margin-top:10px;"></p>
+            </div>
         </div>
-        <div id="login-form" style="margin-top:15px;">
-            <input type="email" id="login-email" placeholder="Email" required style="padding:8px; margin-right:5px;">
-            <input type="password" id="login-password" placeholder="Password" required style="padding:8px; margin-right:5px;">
-            <button id="login-btn">Login</button>
-            <button id="signup-btn">Sign Up</button>
-        </div>
+    </header>
+
+    <!-- Main App Content - HIDDEN until logged in -->
+    <div id="app-content" style="display:none;">
+        <section id="add-transaction">
+            <h2>Add Transaction</h2>
+            <form id="transaction-form">
+                <label for="coin">Coin ID (e.g., bitcoin):</label>
+                <input type="text" id="coin" required placeholder="bitcoin">
+                
+                <label for="action">Action:</label>
+                <select id="action" required>
+                    <option value="buy">Buy</option>
+                    <option value="sell">Sell</option>
+                </select>
+                
+                <label for="quantity">Quantity:</label>
+                <input type="number" id="quantity" min="0" step="0.00000001" required>
+                
+                <label for="price">Price (USD):</label>
+                <input type="number" id="price" min="0" step="0.01" required>
+                
+                <label for="date">Date (optional):</label>
+                <input type="date" id="date">
+                
+                <button type="submit">Add</button>
+            </form>
+        </section>
+        
+        <section id="portfolio">
+            <h2>Your Portfolio</h2>
+            <div id="portfolio-cards"></div>
+            
+            <div id="totals">
+                <p>Total Value: <span id="total-value">0</span> USD</p>
+                <p>Unrealized PnL: <span id="total-unrealized-pnl">0</span> USD</p>
+                <p>Realized PnL: <span id="total-realized-pnl">0</span> USD</p>
+            </div>
+        </section>
+
+        <section id="analytics">
+            <h2>Analytics</h2>
+            <div class="chart-container">
+                <h3>Portfolio Value (30 Days)</h3>
+                <canvas id="portfolioValueChart"></canvas>
+            </div>
+            
+            <div class="chart-container" id="selected-coin-chart" style="display:none;">
+                <h3 id="coin-chart-title"></h3>
+                <canvas id="coinPriceChart"></canvas>
+            </div>
+        </section>
+
+        <section id="transaction-history">
+            <h2>Transaction History</h2>
+            <button id="clear-all">Clear All</button>
+            <div id="history-cards"></div>
+        </section>
     </div>
-</header>
-    
-    
-    <section id="add-transaction">
-        <h2>Add Transaction</h2>
-        <form id="transaction-form">
-            <label for="coin">Coin ID (e.g., bitcoin):</label>
-            <input type="text" id="coin" required placeholder="bitcoin">
-            
-            <label for="action">Action:</label>
-            <select id="action" required>
-                <option value="buy">Buy</option>
-                <option value="sell">Sell</option>
-            </select>
-            
-            <label for="quantity">Quantity:</label>
-            <input type="number" id="quantity" min="0" step="0.00000001" required>
-            
-            <label for="price">Price (USD):</label>
-            <input type="number" id="price" min="0" step="0.01" required>
-            
-            <label for="date">Date (optional):</label>
-            <input type="date" id="date">
-            
-            <button type="submit">Add</button>
-        </form>
-    </section>
-    
-    <section id="portfolio">
-        <h2>Your Portfolio</h2>
-        <div id="portfolio-cards"></div>
-        
-        <div id="totals">
-            <p>Total Value: <span id="total-value">0</span> USD</p>
-            <p>Unrealized PnL: <span id="total-unrealized-pnl">0</span> USD</p>
-            <p>Realized PnL: <span id="total-realized-pnl">0</span> USD</p>
-        </div>
-    </section>
-
-    <section id="analytics">
-        <h2>Analytics</h2>
-        <div class="chart-container">
-            <h3>Portfolio Value (30 Days)</h3>
-            <canvas id="portfolioValueChart"></canvas>
-        </div>
-        
-        <div class="chart-container" id="selected-coin-chart" style="display:none;">
-            <h3 id="coin-chart-title"></h3>
-            <canvas id="coinPriceChart"></canvas>
-        </div>
-    </section>
-
-    <section id="transaction-history">
-        <h2>Transaction History</h2>
-        <button id="clear-all">Clear All</button>
-        <div id="history-cards"></div>
-    </section>
     
     <script src="script.js"></script>
 </body>

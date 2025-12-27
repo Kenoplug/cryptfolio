@@ -1,5 +1,6 @@
-// === FIREBASE SETUP ===
-const firebaseConfig = {
+document.addEventListener('DOMContentLoaded', () => {
+    // === FIREBASE SETUP ===
+    const firebaseConfig = {
   apiKey: "AIzaSyBVnncOiZprt32-UvugIUE3n97a6MWo3M8",
   authDomain: "kenfolio-75b52.firebaseapp.com",
   projectId: "kenfolio-75b52",
@@ -7,88 +8,14 @@ const firebaseConfig = {
   messagingSenderId: "94272736894",
   appId: "1:94272736894:web:f079d80174b9837822522f",
   measurementId: "G-MNK2QGB36L"
-};
+    };
 
-firebase.initializeApp(firebaseConfig);
-const auth = firebase.auth();
-const db = firebase.firestore();
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.firestore();
 
-// Elements
-const loginForm = document.getElementById('login-form');
-const userInfo = document.getElementById('user-info');
-const userEmailSpan = document.getElementById('user-email');
-const logoutBtn = document.getElementById('logout-btn');
-const loginBtn = document.getElementById('login-btn');
-const signupBtn = document.getElementById('signup-btn');
-const emailInput = document.getElementById('login-email');
-const passwordInput = document.getElementById('login-password');
-
-// Auth state listener
-auth.onAuthStateChanged(user => {
-    if (user) {
-        userInfo.style.display = 'block';
-        loginForm.style.display = 'none';
-        userEmailSpan.textContent = user.email;
-        loadUserData(user.uid);
-    } else {
-        userInfo.style.display = 'none';
-        loginForm.style.display = 'block';
-        transactions = [];
-        refreshAll();
-    }
-});
-
-// Login
-loginBtn.addEventListener('click', () => {
-    const email = emailInput.value.trim();
-    const password = passwordInput.value;
-    auth.signInWithEmailAndPassword(email, password)
-        .catch(err => alert('Login failed: ' + err.message));
-});
-
-// Sign Up
-signupBtn.addEventListener('click', () => {
-    const email = emailInput.value.trim();
-    const password = passwordInput.value;
-    if (password.length < 6) return alert('Password must be at least 6 characters');
-    auth.createUserWithEmailAndPassword(email, password)
-        .catch(err => alert('Sign up failed: ' + err.message));
-});
-
-// Logout
-logoutBtn.addEventListener('click', () => {
-    auth.signOut();
-});
-
-// Save/Load transactions per user
-function saveTransactions() {
-    const user = auth.currentUser;
-    if (user) {
-        db.collection('users').doc(user.uid).set({
-            transactions: transactions
-        }).catch(err => console.error('Save error:', err));
-    }
-}
-
-function loadUserData(uid) {
-    db.collection('users').doc(uid).get()
-        .then(doc => {
-            if (doc.exists && doc.data().transactions) {
-                transactions = doc.data().transactions;
-            } else {
-                transactions = [];
-            }
-            refreshAll();
-        }).catch(err => {
-            console.error('Load error:', err);
-            transactions = [];
-            refreshAll();
-        });
-}
-
-
-document.addEventListener('DOMContentLoaded', () => {
-    const form = document.getElementById('transaction-form');
+    // === ELEMENTS ===
+    const appContent = document.getElementById('app-content');
     const portfolioCards = document.getElementById('portfolio-cards');
     const historyCards = document.getElementById('history-cards');
     const totalValueSpan = document.getElementById('total-value');
@@ -96,16 +23,114 @@ document.addEventListener('DOMContentLoaded', () => {
     const totalRealizedPnlSpan = document.getElementById('total-realized-pnl');
     const clearAllBtn = document.getElementById('clear-all');
 
-    let transactions = JSON.parse(localStorage.getItem('cryptoTransactions')) || [];
+    const userInfo = document.getElementById('user-info');
+    const loginForm = document.getElementById('login-form');
+    const userEmailSpan = document.getElementById('user-email');
+    const authMessage = document.getElementById('auth-message');
+
+    const loginBtn = document.getElementById('login-btn');
+    const signupBtn = document.getElementById('signup-btn');
+    const logoutBtn = document.getElementById('logout-btn');
+    const emailInput = document.getElementById('login-email');
+    const passwordInput = document.getElementById('login-password');
+
+    const form = document.getElementById('transaction-form');
+
+    let transactions = [];
     let portfolio = {};
     let portfolioValueChart = null;
     let coinPriceChart = null;
     let selectedCoin = null;
 
+    // === AUTH STATE LISTENER ===
+    auth.onAuthStateChanged(user => {
+        if (user) {
+            // Logged in
+            userInfo.style.display = 'block';
+            loginForm.style.display = 'none';
+            appContent.style.display = 'block';
+            userEmailSpan.textContent = user.email;
+            authMessage.textContent = '';
+            loadUserData(user.uid);
+        } else {
+            // Logged out
+            userInfo.style.display = 'none';
+            loginForm.style.display = 'block';
+            appContent.style.display = 'none';
+            authMessage.textContent = '';
+
+            // Clear everything
+            transactions = [];
+            portfolio = {};
+            portfolioCards.innerHTML = '';
+            historyCards.innerHTML = '';
+            totalValueSpan.textContent = '0';
+            totalUnrealizedPnlSpan.textContent = '0';
+            totalRealizedPnlSpan.textContent = '0';
+
+            [portfolioValueChart, coinPriceChart].forEach(chart => {
+                if (chart) chart.destroy();
+            });
+            document.getElementById('selected-coin-chart').style.display = 'none';
+        }
+    });
+
+    // === LOGIN / SIGNUP ===
+    loginBtn.addEventListener('click', () => {
+        const email = emailInput.value.trim();
+        const password = passwordInput.value;
+        if (!email || !password) return authMessage.textContent = 'Please fill in both fields';
+
+        auth.signInWithEmailAndPassword(email, password)
+            .catch(err => authMessage.textContent = 'Login failed: ' + err.message);
+    });
+
+    signupBtn.addEventListener('click', () => {
+        const email = emailInput.value.trim();
+        const password = passwordInput.value;
+        if (!email || !password) return authMessage.textContent = 'Please fill in both fields';
+        if (password.length < 6) return authMessage.textContent = 'Password must be at least 6 characters';
+
+        auth.createUserWithEmailAndPassword(email, password)
+            .catch(err => authMessage.textContent = 'Sign up failed: ' + err.message);
+    });
+
+    // === CONCISE LOGOUT ===
+    logoutBtn.addEventListener('click', () => {
+        auth.signOut().then(() => {
+            authMessage.textContent = 'Logged out successfully.';
+        }).catch(err => {
+            authMessage.textContent = 'Logout failed: ' + err.message;
+        });
+    });
+
+    // === SAVE / LOAD USER DATA ===
     function saveTransactions() {
-        localStorage.setItem('cryptoTransactions', JSON.stringify(transactions));
+        const user = auth.currentUser;
+        if (user) {
+            db.collection('users').doc(user.uid).set({
+                transactions: transactions
+            }).catch(err => console.error('Save error:', err));
+        }
     }
 
+    function loadUserData(uid) {
+        db.collection('users').doc(uid).get()
+            .then(doc => {
+                if (doc.exists && doc.data().transactions) {
+                    transactions = doc.data().transactions;
+                } else {
+                    transactions = [];
+                }
+                refreshAll();
+            }).catch(err => {
+                console.error('Load error:', err);
+                transactions = [];
+                refreshAll();
+            });
+    }
+
+    // === PORTFOLIO LOGIC ===
     function updatePortfolio() {
         portfolio = {};
         let fifoQueues = {};
@@ -264,7 +289,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     <div class="card-item"><span class="card-label">Quantity</span><span class="card-value">${tx.quantity.toFixed(6)}</span></div>
                     <div class="card-item"><span class="card-label">Price</span><span class="card-value">$${tx.price.toFixed(2)}</span></div>
                     <div class="card-item"><span class="card-label">Total</span><span class="card-value">$${total}</span></div>
-                    <div class="card-item" style="grid-column: span 2;"><button class="delete-btn" data-index="${transactions.findIndex(t => t === tx)}">Delete</button></div>
+                    <div class="card-item" style="grid-column: span 2;"><button class="delete-btn" data-index="${i}">Delete</button></div>
                 </div>
             `;
             historyCards.appendChild(card);
@@ -317,6 +342,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // === ADD TRANSACTION ===
     form.addEventListener('submit', e => {
         e.preventDefault();
         const coin = document.getElementById('coin').value.trim().toLowerCase();
@@ -331,13 +357,12 @@ document.addEventListener('DOMContentLoaded', () => {
         form.reset();
     });
 
+    // === CLEAR ALL ===
     clearAllBtn.addEventListener('click', () => {
-        if (confirm('Delete ALL transactions?')) {
+        if (confirm('Delete ALL transactions? This cannot be undone.')) {
             transactions = [];
-            localStorage.removeItem('cryptoTransactions');
+            saveTransactions();
             refreshAll();
         }
     });
-
-    refreshAll();
 });
